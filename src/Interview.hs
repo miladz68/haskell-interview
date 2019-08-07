@@ -4,6 +4,8 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 module Interview where
 
+import           Data.Time.Clock
+
 -- * Advances
 --
 -- When our users run out of money before their paycheck, we send them some money as an Advance. 
@@ -35,8 +37,16 @@ module Interview where
 
 data TODO = TODO
 
-collectAdvances :: Monad m => m TODO
-collectAdvances = pure otherFunctions
+collectAdvances :: (Monad m, Bank m, Store Advance m) => m ()
+collectAdvances = do
+  allAdvs <- storeLoad
+  pure ()
+
+-- example :: Bank m => AccountId -> m ()
+-- example accountId = do
+--   ts  <- bankTransactions accountId
+--   bal <- bankBalance accountId
+--   bankCredit accountId 120.45
 
 otherFunctions :: TODO
 otherFunctions = TODO
@@ -67,10 +77,19 @@ otherFunctions = TODO
 -- Advances are "collected" 
 
 type AccountId = String
-data Account = Account
+data AccountStatus = Active | OnHold
+data Account = Account {
+    aId :: AccountId
+  , aStatus :: AccountStatus
+  }
+
 
 type AdvanceId = String
-data Advance = Advance
+data Advance = Advance {
+    advanceAmount :: Amount
+  , advanceDate :: UTCTime
+  , accountId :: AccountId
+}
 
 
 
@@ -96,7 +115,10 @@ class Monad m => Bank m where
   bankTransactions :: AccountId -> m [Transaction]
 
 type Amount = Float
-data Transaction = Transaction
+data Transaction = Transaction{
+    transactionAmoung :: Amount
+  , transactionTime :: UTCTime
+}
 
 
 -- | Store: save and load records ------------------
