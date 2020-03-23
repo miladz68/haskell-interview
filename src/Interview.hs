@@ -2,9 +2,13 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE RecordWildCards #-}
 module Interview where
 
 import           Data.Time.Clock
+import           Data.Time.Calendar
+import           Data.Maybe
+import           Control.Monad.IO.Class
 
 -- * Advances
 --
@@ -39,8 +43,38 @@ data TODO = TODO
 
 collectAdvances :: (Monad m, Bank m, Store Advance m) => m ()
 collectAdvances = do
-  allAdvs <- storeLoad
+  now                  <- liftIO getCurrentTime
+  allAdvs :: [Advance] <- storeLoad
+  let dueAdvance = filterDueAdvances now allAdvs
   pure ()
+
+
+data DueAdvance =
+    OverDue     Advance
+  | FirstDayDue Advance
+  | Due         Advance
+
+-- this function will filter get a lsit of advances and filter them if they are due
+-- and based on the time of the due andvance it will turn them to DueAdvance type
+filterDueAdvances :: UTCTime -> [Advance] -> [DueAdvance]
+filterDueAdvances now advs = mapMaybe filterDueAdvance advs
+ where
+  filterDueAdvance :: Advance -> Maybe DueAdvance
+  filterDueAdvance adv@Advance {..}
+    | utctDay advanceDueDate == utctDay now = Just $ FirstDayDue adv
+    | addDays 15 (utctDay advanceDueDate) <= utctDay now = Just $ Due adv
+    | addDays 15 (utctDay advanceDueDate) > utctDay now = Just $ Due adv
+    | otherwise                             = Nothing
+
+advanceAction :: (Monad m, Bank m, Store Advance m) => DueAdvance -> m ()
+advanceAction du = case du of
+  FirstDayDue adv -> firstDayAction adv
+  OverDue     adv -> overDueAction adv
+  Due         adv -> dueAction adv
+ where
+  firstDayAction adv = undefined
+  overDueAction adv = undefined
+  dueAction adv = undefined
 
 -- example :: Bank m => AccountId -> m ()
 -- example accountId = do
@@ -88,6 +122,7 @@ type AdvanceId = String
 data Advance = Advance {
     advanceAmount :: Amount
   , advanceDate :: UTCTime
+  , advanceDueDate :: UTCTime
   , accountId :: AccountId
 }
 
